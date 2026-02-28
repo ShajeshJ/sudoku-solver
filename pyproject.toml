@@ -1,0 +1,8 @@
+[project]
+name = "sudoku-solver"
+version = "0.1.0"
+description = "A simple Sudoku solver implemented in Python."
+authors = [{ name = "Shajesh J.", email = "shajesh.14@gmail.com" }]
+license = "MIT"
+requires-python = ">=3.12"
+dependencies = ["pillow == 12.1.1"]

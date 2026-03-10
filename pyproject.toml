@@ -5,4 +5,8 @@ description = "A simple Sudoku solver implemented in Python."
 authors = [{ name = "Shajesh J.", email = "shajesh.14@gmail.com" }]
 license = "MIT"
 requires-python = ">=3.12"
-dependencies = ["pillow == 12.1.1"]
+dependencies = [
+    "pillow == 12.1.1",
+    "opencv-python == 4.13.0.92",
+    "imutils == 0.5.4",
+]

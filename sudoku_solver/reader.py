@@ -2,12 +2,16 @@ import cv2
 import numpy as np
 from imutils import contours
 from PIL import ImageGrab, Image
-from .board import Board2D
+import pytesseract
+
+from .board import Board1D
 
 __all__ = ["from_clipboard"]
 
+pytesseract.pytesseract.tesseract_cmd = "/usr/bin/tesseract"
 
-def from_clipboard(filepath: str) -> None:
+
+def from_clipboard() -> Board1D:
     loaded_img = ImageGrab.grabclipboard()
     if not isinstance(loaded_img, Image.Image):
         raise ValueError("Clipboard does not contain an image")
@@ -43,10 +47,36 @@ def from_clipboard(filepath: str) -> None:
     grid_cntrs, _ = contours.sort_contours(grid_cntrs, method="left-to-right")
     grid_cntrs, _ = contours.sort_contours(grid_cntrs, method="top-to-bottom")
 
-    # uses each contour to create a mask on the original image to highlight each cell individually
+    sudoku_grid: list[int | None] = []
+
     for cell in grid_cntrs:
-        mask = np.zeros(gray_img.shape, dtype=np.uint8)
-        cv2.drawContours(mask, [cell], -1, (255, 255, 255), -1)
-        masked = cv2.bitwise_and(gray_img, mask)
-        cv2.imshow("masked cell", masked)
-        cv2.waitKey(500)
+        # uses each contour to create a cropped mask of each individual cell
+        x, y, w, h = cv2.boundingRect(cell)
+        masked = gray_img[y : y + h, x : x + w]
+        _, masked = cv2.threshold(masked, 127, 255, cv2.THRESH_BINARY)
+
+        # check if cell is completely white pixels; skip to avoid garbage from the OCR
+        if cv2.countNonZero(masked) == masked.shape[0] * masked.shape[1]:
+            sudoku_grid.append(None)
+            continue
+
+        # we make the text smaller because the OCR struggles with images with big font text
+        masked = cv2.resize(masked, None, fx=0.5, fy=0.5, interpolation=cv2.INTER_CUBIC)
+
+        # run OCR in psm 10 (for detecting a singular character)
+        maybe_digit: str = pytesseract.image_to_string(masked, config=r"--psm 10")
+        maybe_digit = maybe_digit.strip()
+
+        if len(maybe_digit) > 1 or not maybe_digit.isdigit():
+            raise ValueError(f"parsed unidentifiable sudoku cell <{maybe_digit}>")
+
+        sudoku_grid.append(int(maybe_digit))
+
+        # visual debugging
+        # mask = np.zeros(gray_img.shape, dtype=np.uint8)
+        # cv2.drawContours(mask, [cell], -1, (255, 255, 255), -1)
+        # masked = cv2.bitwise_and(gray_img, mask)
+        # cv2.imshow("masked cell", masked)
+        # cv2.waitKey(500)
+
+    return sudoku_grid
